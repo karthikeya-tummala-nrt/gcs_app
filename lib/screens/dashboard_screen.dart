@@ -42,19 +42,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final viewPadding = MediaQuery.of(context).viewPadding;
     const double appBarHeight = 40.0;
 
-    // STRICT PHONE CHECK: shortestSide < 600 is standard for phones
     final bool isPhone = size.shortestSide < 600;
-    final bool isLandscape = size.width > size.height;
-
-    // Boundary calculation to keep panels on screen
-    final double availableHeight = size.height - viewPadding.top - appBarHeight - 20;
 
     return Scaffold(
       extendBodyBehindAppBar: true,
+      // Ensure the background is transparent so the Map fills the whole screen
+      backgroundColor: Colors.transparent,
       appBar: TransparentDashboardAppBar(
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
+            // Menu button to trigger the Drawer in MainNavigationWrapper
+            IconButton(
+              icon: const Icon(Icons.menu, color: Colors.white, size: 20),
+              onPressed: () => Scaffold.of(context).openDrawer(),
+            ),
             Flexible(
               flex: 3,
               child: FittedBox(
@@ -93,42 +95,52 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ],
         ),
       ),
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: Image.asset('assets/images/static_map.png', fit: BoxFit.cover),
-          ),
+      // Use LayoutBuilder for DYNAMIC calculation of available space
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          // constraints.maxHeight is now the EXACT space available
+          // after the BottomNav is rendered.
+          final double availableHeight = constraints.maxHeight - viewPadding.top - appBarHeight - 20;
 
-          // Telemetry Panel (Left) - Hugs content width
-          Positioned(
-            left: 10,
-            top: viewPadding.top + appBarHeight + 10,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxHeight: availableHeight,
-                maxWidth: isPhone ? 120 : 210, // Max bounds
+          return Stack(
+            children: [
+              // 1. Background Map (Fills the available area)
+              Positioned.fill(
+                child: Image.asset('assets/images/static_map.png', fit: BoxFit.cover),
               ),
-              child: IntrinsicWidth(
-                child: TelemetryPanel(controller: controller, forceSingleColumn: isPhone),
-              ),
-            ),
-          ),
 
-          // Controls Panel (Right) - Hugs content width
-          Positioned(
-            right: 10,
-            top: viewPadding.top + appBarHeight + 10,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxHeight: availableHeight,
-                maxWidth: isPhone ? 110 : 200,
+              // 2. Telemetry Panel (Left)
+              Positioned(
+                left: 10,
+                top: viewPadding.top + appBarHeight + 10,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: availableHeight,
+                    maxWidth: isPhone ? 120 : 210,
+                  ),
+                  child: IntrinsicWidth(
+                    child: TelemetryPanel(controller: controller, forceSingleColumn: isPhone),
+                  ),
+                ),
               ),
-              child: IntrinsicWidth(
-                child: ControlsPanel(forceSingleColumn: isPhone),
+
+              // 3. Controls Panel (Right)
+              Positioned(
+                right: 10,
+                top: viewPadding.top + appBarHeight + 10,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: availableHeight,
+                    maxWidth: isPhone ? 110 : 200,
+                  ),
+                  child: IntrinsicWidth(
+                    child: ControlsPanel(forceSingleColumn: isPhone),
+                  ),
+                ),
               ),
-            ),
-          ),
-        ],
+            ],
+          );
+        },
       ),
     );
   }

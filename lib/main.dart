@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'screens/dashboard_screen.dart';
+import 'package:gcs_app/screens/main_navigation_wrapper.dart';
+import 'package:gcs_app/screens/settings_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -42,7 +43,11 @@ class MyApp extends StatelessWidget {
           shadowColor: Colors.black12,
         ),
       ),
-      home: const DashboardScreen(),
+      initialRoute: '/',
+      routes: {
+        '/': (context) => MainNavigationWrapper(),
+        '/settings': (context) => SettingsScreen(),
+      },
     );
   }
 }
