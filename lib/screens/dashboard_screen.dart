@@ -9,7 +9,6 @@ import '../widgets/armed_indicator.dart';
 import '../widgets/controls_panel.dart';
 import '../widgets/telemetry_panel.dart';
 import '../services/alert_service.dart';
-import '../widgets/alert_panel.dart';
 
 class DashboardScreen extends StatefulWidget {
   final AlertService alertService;
@@ -17,7 +16,7 @@ class DashboardScreen extends StatefulWidget {
   const DashboardScreen({
     super.key,
     required this.alertService,
-    required this.controller, // 2. ADD: required parameter
+    required this.controller,
   });
 
   @override
