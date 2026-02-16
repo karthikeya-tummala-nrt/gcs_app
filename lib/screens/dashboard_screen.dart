@@ -2,27 +2,36 @@ import 'package:flutter/material.dart';
 import 'package:gcs_app/widgets/dashboard_app_bar.dart';
 import 'package:gcs_app/widgets/battery_indicator.dart';
 import 'package:gcs_app/widgets/gps_indicator.dart';
+import 'package:gcs_app/widgets/map_panel.dart';
 import 'package:gcs_app/widgets/signal_indicator.dart';
 import '../controllers/dashboard_controller.dart';
 import '../widgets/armed_indicator.dart';
 import '../widgets/controls_panel.dart';
 import '../widgets/telemetry_panel.dart';
+import '../services/alert_service.dart';
+import '../widgets/alert_panel.dart';
 
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({super.key});
+  final AlertService alertService;
+  final DashboardController controller;
+  const DashboardScreen({
+    super.key,
+    required this.alertService,
+    required this.controller, // 2. ADD: required parameter
+  });
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
+
 class _DashboardScreenState extends State<DashboardScreen> {
-  final DashboardController controller = DashboardController();
 
   @override
   void initState() {
     super.initState();
-    controller.start();
-    controller.addListener(_updateState);
+    widget.controller.start(context, widget.alertService);
+    widget.controller.addListener(_updateState);
   }
 
   void _updateState() {
@@ -31,8 +40,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   void dispose() {
-    controller.removeListener(_updateState);
-    controller.disposeController();
+    widget.controller.removeListener(_updateState);
+    widget.controller.disposeController();
     super.dispose();
   }
 
@@ -43,16 +52,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
     const double appBarHeight = 40.0;
 
     final bool isPhone = size.shortestSide < 600;
+    // FIXED: Added isLarge for laptop scaling
+    final bool isLarge = size.width > 1000;
 
     return Scaffold(
       extendBodyBehindAppBar: true,
-      // Ensure the background is transparent so the Map fills the whole screen
       backgroundColor: Colors.transparent,
       appBar: TransparentDashboardAppBar(
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            // Menu button to trigger the Drawer in MainNavigationWrapper
             IconButton(
               icon: const Icon(Icons.menu, color: Colors.white, size: 20),
               onPressed: () => Scaffold.of(context).openDrawer(),
@@ -62,14 +71,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: FittedBox(
                 fit: BoxFit.scaleDown,
                 alignment: Alignment.centerLeft,
-                child: GPSIndicator(gps: controller.gps),
+                child: GPSIndicator(gps: widget.controller.gps),
               ),
             ),
             Flexible(
               flex: 2,
               child: FittedBox(
                 fit: BoxFit.scaleDown,
-                child: ArmedIndicator(isArmed: controller.armed),
+                child: ArmedIndicator(isArmed: widget.controller.armed),
               ),
             ),
             Flexible(
@@ -80,13 +89,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 child: Row(
                   children: [
                     SignalIndicator(
-                        signalStrength: controller.rssi,
-                        signalPercentage: controller.signal
+                        signalStrength: widget.controller.rssi,
+                        signalPercentage: widget.controller.signal
                     ),
                     const SizedBox(width: 8),
                     BatteryIndicator(
-                        batteryPercentage: controller.battery,
-                        voltage: controller.voltage
+                        batteryPercentage: widget.controller.battery,
+                        voltage: widget.controller.voltage
                     ),
                   ],
                 ),
@@ -95,18 +104,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ],
         ),
       ),
-      // Use LayoutBuilder for DYNAMIC calculation of available space
       body: LayoutBuilder(
         builder: (context, constraints) {
-          // constraints.maxHeight is now the EXACT space available
-          // after the BottomNav is rendered.
           final double availableHeight = constraints.maxHeight - viewPadding.top - appBarHeight - 20;
 
           return Stack(
             children: [
               // 1. Background Map (Fills the available area)
               Positioned.fill(
-                child: Image.asset('assets/images/static_map.png', fit: BoxFit.cover),
+                child: MapPanel(),
               ),
 
               // 2. Telemetry Panel (Left)
@@ -115,12 +121,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 top: viewPadding.top + appBarHeight + 10,
                 child: ConstrainedBox(
                   constraints: BoxConstraints(
-                    maxHeight: availableHeight,
-                    maxWidth: isPhone ? 120 : 210,
+                    maxHeight: availableHeight * 0.7,
+                    maxWidth: isPhone ? 120 : (isLarge ? 320 : 210),
                   ),
-                  child: IntrinsicWidth(
-                    child: TelemetryPanel(controller: controller, forceSingleColumn: isPhone),
-                  ),
+                  child: TelemetryPanel(controller: widget.controller, forceSingleColumn: isPhone),
                 ),
               ),
 

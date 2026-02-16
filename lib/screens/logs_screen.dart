@@ -1,29 +1,33 @@
 import 'package:flutter/material.dart';
+import '../widgets/alert_panel.dart';
+import '../services/alert_service.dart';
+import '../controllers/dashboard_controller.dart';
 
 class LogsScreen extends StatelessWidget {
-  const LogsScreen({super.key});
+  final AlertService alertService;
+  final DashboardController
+  controller; // Add the controller to get telemetry history
+
+  const LogsScreen({
+    super.key,
+    required this.alertService,
+    required this.controller,
+  });
 
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
       length: 3,
       child: Scaffold(
-        backgroundColor: const Color(0xFF0D1117), //
+        backgroundColor: const Color(0xFF0D1117),
         appBar: AppBar(
-          // Solid background matching Mission Planner exactly
-          backgroundColor: const Color(0xFF161B22), //
-          elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.menu, size: 20),
-            onPressed: () => Scaffold.of(context).openDrawer(),
-          ),
+          backgroundColor: const Color(0xFF161B22),
           title: const Text(
             "SYSTEM LOGS",
-            style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.2, fontSize: 14),
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
           ),
           bottom: const TabBar(
-            indicatorColor: Colors.blueAccent, //
-            labelStyle: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+            indicatorColor: Colors.blueAccent,
             tabs: [
               Tab(text: "TELEMETRY"),
               Tab(text: "ALERTS"),
@@ -33,9 +37,22 @@ class LogsScreen extends StatelessWidget {
         ),
         body: TabBarView(
           children: [
-            _buildTelemetryLog(),
-            _buildAlertLog(),
-            _buildMissionHistory(),
+            // 1. Telemetry Data Tab
+            ListenableBuilder(
+              listenable: controller,
+              builder: (context, _) {
+                return _buildTelemetryLog();
+              },
+            ),
+
+            // 2. Alerts Tab (Already listening to alertService)
+            ListenableBuilder(
+              listenable: alertService,
+              builder: (context, _) => AlertPanel(alerts: alertService.recentAlerts),
+            ),
+
+            // 3. Mission Records Tab
+            _buildMissionLog(),
           ],
         ),
       ),
@@ -43,109 +60,71 @@ class LogsScreen extends StatelessWidget {
   }
 
   Widget _buildTelemetryLog() {
-    return ListView.builder(
+    return ListView(
       padding: const EdgeInsets.all(16),
-      itemCount: 25,
-      itemBuilder: (context, i) {
-        final timestamp = "14:20:${(i * 2).toString().padLeft(2, '0')}";
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 2),
+      children: [
+        _logTile(
+          "Current Battery",
+          "${controller.battery}%",
+          Icons.battery_charging_full,
+        ),
+        _logTile(
+          "Max Altitude",
+          "${controller.altitude.toStringAsFixed(1)}m",
+          Icons.height,
+        ),
+        _logTile(
+          "Signal Strength",
+          "${controller.rssi} dBm",
+          Icons.signal_cellular_alt,
+        ),
+        const Divider(color: Colors.grey),
+        const Center(
           child: Text(
-            "[$timestamp] ALT: ${120 + i}m | SPD: ${7.2}m/s | BATT: ${95 - (i ~/ 5)}%",
-            style: const TextStyle(
-                fontFamily: 'Monospace',
-                fontSize: 11,
-                color: Colors.greenAccent
-            ), //
+            "Live Telemetry Stream Active",
+            style: TextStyle(color: Colors.grey, fontSize: 10),
           ),
-        );
-      },
-    );
-  }
-
-  Widget _buildAlertLog() {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: const [
-        _LogEntry("14:20:05", Icons.warning, "Low Battery", "Level 15%", Colors.orange),
-        _LogEntry("14:18:30", Icons.error, "GPS Glitch", "Sats dropped to 4", Colors.red),
-        _LogEntry("14:15:12", Icons.info, "Mode Change", "Switched to RTL", Colors.blueAccent),
+        ),
       ],
     );
   }
 
-  Widget _buildMissionHistory() {
+  Widget _buildMissionLog() {
     return ListView(
       padding: const EdgeInsets.all(16),
-      children: const [
-        _MissionTile("2026-02-12 10:30", "00:14:22", "SUCCESS"),
-        _MissionTile("2026-02-12 09:15", "00:05:10", "ABORTED"),
-        _MissionTile("2026-02-11 16:45", "00:22:15", "SUCCESS"),
+      children: [
+        _logTile(
+          "Mission #42",
+          "COMPLETED",
+          Icons.check_circle,
+          color: Colors.green,
+        ),
+        _logTile("Mission #41", "ABORTED", Icons.cancel, color: Colors.red),
+        _logTile(
+          "Mission #40",
+          "COMPLETED",
+          Icons.check_circle,
+          color: Colors.green,
+        ),
       ],
     );
   }
-}
 
-// Sub-widget for Alert Entries
-class _LogEntry extends StatelessWidget {
-  final String time, title, msg;
-  final IconData icon;
-  final Color color;
-
-  const _LogEntry(this.time, this.icon, this.title, this.msg, this.color);
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _logTile(
+    String title,
+    String value,
+    IconData icon, {
+    Color color = Colors.blueAccent,
+  }) {
     return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: Text(time, style: const TextStyle(fontFamily: 'Monospace', fontSize: 10, color: Colors.grey)),
-      title: Row(
-        children: [
-          Icon(icon, color: color, size: 16),
-          const SizedBox(width: 8),
-          Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-        ],
+      leading: Icon(icon, color: color, size: 20),
+      title: Text(
+        title,
+        style: const TextStyle(color: Colors.white, fontSize: 13),
       ),
-      subtitle: Padding(
-        padding: const EdgeInsets.only(left: 24),
-        child: Text(msg, style: const TextStyle(fontSize: 11, color: Colors.white70)),
-      ),
-    );
-  }
-}
-
-// Sub-widget for Mission History Cards
-class _MissionTile extends StatelessWidget {
-  final String date, duration, status;
-  const _MissionTile(this.date, this.duration, this.status);
-
-  @override
-  Widget build(BuildContext context) {
-    final bool isSuccess = status == "SUCCESS";
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF161B22), //
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: Colors.white10),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(date, style: const TextStyle(fontSize: 10, color: Colors.grey)),
-              const SizedBox(height: 4),
-              Text("DURATION: $duration", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-            ],
-          ),
-          Text(
-            status,
-            style: TextStyle(color: isSuccess ? Colors.green : Colors.red, fontSize: 10, fontWeight: FontWeight.bold),
-          ),
-        ],
+      trailing: Text(
+        value,
+        style: const TextStyle(color: Colors.white70, fontFamily: 'Monospace'),
       ),
     );
   }

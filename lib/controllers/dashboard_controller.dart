@@ -1,6 +1,8 @@
+import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:math';
-import 'package:flutter/material.dart';
+import '../services/alert_service.dart';
+import '../models/alert.dart';
 
 class DashboardController extends ChangeNotifier {
   final Random _random = Random();
@@ -23,8 +25,13 @@ class DashboardController extends ChangeNotifier {
   int rssi = -62;
   int latency = 120;
 
-  void start() {
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+  bool _lowBatteryWarned = false;
+  bool _criticalBatteryWarned = false;
+  bool _gpsLostWarned = false;
+  bool _signalLostWarned = false;
+
+  void start(BuildContext context, AlertService alertService) {
+    _timer = Timer.periodic(const Duration(seconds: 2), (_) {
       if (armed) {
         // Simulated climb/descent physics
         verticalSpeed = (_random.nextDouble() * 2 - 1).clamp(-2, 2);
@@ -39,6 +46,33 @@ class DashboardController extends ChangeNotifier {
         voltage = (voltage - 0.005).clamp(13.5, 16.8);
         consumed += current * 0.0003;
         battery = (battery - 1).clamp(0, 100);
+      }
+
+      if (battery <= 20 && battery > 10 && !_lowBatteryWarned) {
+        alertService.triggerAlert(context, AlertLevel.warning, "Battery Low: $battery%");
+        _lowBatteryWarned = true;
+      }
+      else if (battery <= 10 && !_criticalBatteryWarned) {
+        alertService.triggerAlert(context, AlertLevel.critical, "CRITICAL BATTERY: $battery%");
+        _criticalBatteryWarned = true;
+      }
+
+      gps = 10 + _random.nextInt(8);
+      if (gps < 11 && !_gpsLostWarned) {
+        alertService.triggerAlert(context, AlertLevel.warning, "GPS Signal Weak: $gps Sats");
+        _gpsLostWarned = true;
+      }
+
+      // 4. Connection Lost (Rare dip simulation)
+      if (signal < 65 && !_signalLostWarned) {
+        alertService.triggerAlert(context, AlertLevel.critical, "LINK QUALITY DEGRADED: $signal%");
+        _signalLostWarned = true;
+      }
+
+      // Reset flags if battery is recharged (for your simulation loop)
+      if (battery > 90) {
+        _lowBatteryWarned = false;
+        _criticalBatteryWarned = false;
       }
 
       if (battery < 10) {
